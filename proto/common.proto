@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package ResolutionSystem;
+
+option go_package = "example.com/ResolutionSystem/server/GORPC/proto";
+
+message Empty{}
+
+message Feature {
+  Id id = 1;
+  Name name = 2;
+  Description description = 3;
+}
+
+message Name {
+  string name = 1;
+}
+
+service UserFeatureSevice{
+  
+  // returns all the features
+  // why stream not list(a.k.a repeated) ::  https://stackoverflow.com/questions/57997723/grpc-repeated-field-vs-stream
+  rpc GetAllFeatures(Empty) returns (stream Feature);
+
+  // searches feature by geting similar name 
+  rpc GetFeatureByName(Name) returns (Feature);
+
+  rpc GetFeatureById(Id) returns (Feature);
+
+  // returns feature by ranking the most similar 
+  rpc GetFeatureByDsc(Description) returns (stream Feature);
+}
+
+service DevFeatureService{
+  rpc AddFeature(Feature) returns (Feature);
+  rpc ListAllName(Empty) returns (stream Name);
+}
+
+
+message Id {
+  string id = 1;
+}
+
+message Title {
+  string title = 1;
+}
+
+message Description {
+  string description = 1;
+}
+
+message Issue {
+  Id id = 1;
+  Title title = 2;
+  Feature related = 3;
+  Description description = 4;
+  int32 status = 5;   // OPEN = 1, RESOLVED = 2, NO_CHANGE = 3 [ENUM]
+  string solution = 6;
+}
+
+message Limit{
+  int32 k = 1;
+}
+
+message CreateIssueResponse {
+  Issue issue = 1;
+  bool assign_to_engineer = 2;
+}
+
+service UserIssueService {
+  rpc PostIssue(Issue) returns (PostIssueResponse);
+  rpc GetIssuesByName(Name) returns (stream Issue);
+  rpc GetIssueByTitle(Title) returns (Issue);
+  rpc GetIssueById(Id) returns (Issue);
+}
+
+service DevIssueService {
+  rpc GetAllIssues(Empty) returns (stream Issue);
+  rpc GetIssuesByName(Name) returns (stream Issue);
+  rpc GetPendingIssues(Empty) returns (stream Issue);
+  rpc PostSollution(Solution) returns (Solution);
+
+}
+
+message Solution {
+  Id id = 1 ;
+  string solution = 2;
+}
+
+service IssueIntermideateService {
+  rpc CreateIssue(Issue) returns (CreateIssueResponse);
+  rpc FindSimilarIssue(FindSimilarIssueArgs) returns (stream Issue);
+}
+
+// TODO :: move to union ? 
+// gRPC union
+// https://stackoverflow.com/questions/35916707/google-protobuf-how-to-create-unions-using-google-protocol-buffer
+// Taking to much space 
+message PostIssueResponse {
+  optional CreateIssueResponse created = 1 ;
+  optional IssueList issues = 2 ; 
+  bool isCreated = 3 ;
+}
+
+message IssueList {
+  repeated Issue issues= 1;
+}
+
+message FindSimilarIssueArgs {
+  Issue issue = 1;
+  Limit k = 2;
+}
+
+

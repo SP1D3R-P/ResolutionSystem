@@ -1,0 +1,9 @@
+
+Task.txt
+TODO
+
+db/
+__pycache__/
+Tokenizer/
+.venv/
+.env

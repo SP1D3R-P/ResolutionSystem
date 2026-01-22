@@ -1,0 +1,14 @@
+[project]
+name = "resulation-system"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "chromadb>=1.4.0",
+    "dotenv>=0.9.9",
+    "grpcio>=1.76.0",
+    "grpcio-tools>=1.76.0",
+    "torch>=2.9.1",
+    "transformers>=4.57.6",
+]
