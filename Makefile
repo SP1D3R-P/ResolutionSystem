@@ -57,9 +57,7 @@ build:
 	go get google.golang.org/protobuf
 
 	pip install uv 
-	uv add grpcio grpcio-tools
-
-	touch $(ENV_FILE)
+	uv sync
 
 
 

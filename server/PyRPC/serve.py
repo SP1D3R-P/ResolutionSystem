@@ -24,26 +24,26 @@ def serve():
 
     # if not (pathlib.Path(__file__).parent / os.getenv('VECTOR_DB_PATH')).exists():
     dev_f : DevFeatureService = DevFeatureService()
-    # dev_f.AddFeaturePy(
-    #     name= 'numpy.Zeros',
-    #     desc=np.zeros.__doc__
-    # )
-    # dev_f.AddFeaturePy(
-    #     name= 'numpy.argmax',
-    #     desc=np.argmax.__doc__
-    # )
-    # dev_f.AddFeaturePy(
-    #     name= 'numpy.argmin',
-    #     desc=np.argmin.__doc__
-    # )
-    # dev_f.AddFeaturePy(
-    #     name= 'requests.get',
-    #     desc=requests.get.__doc__
-    # )
-    # dev_f.AddFeaturePy(
-    #     name= 'requests.post',
-    #     desc=requests.post.__doc__
-    # )
+    dev_f.AddFeaturePy(
+        name= 'numpy.Zeros',
+        desc="Forms Array with zero"
+    )
+    dev_f.AddFeaturePy(
+        name= 'numpy.argmax',
+        desc="Max of Given Iter Arg"
+    )
+    dev_f.AddFeaturePy(
+        name= 'numpy.argmin',
+        desc="Min of Given Iter Arg"
+    )
+    dev_f.AddFeaturePy(
+        name= 'requests.get',
+        desc="Request using Get Method"
+    )
+    dev_f.AddFeaturePy(
+        name= 'requests.post',
+        desc="Request using POST Method"
+    )
     # print("Data Inserted")
     print(dev_f._db.collection.get())
     
@@ -51,7 +51,7 @@ def serve():
     add_UserFeatureSeviceServicer_to_server(UserFeatureService(),server=server)
     add_DevFeatureServiceServicer_to_server(DevFeatureService(),server=server)
 
-    add_IssueIntermideateServiceServicer_to_server(IssueIntermideateService(30.0),server=server)
+    add_IssueIntermideateServiceServicer_to_server(IssueIntermideateService(0.4526),server=server)
     add_UserIssueServiceServicer_to_server(UserIssueService(),server=server)
     add_DevIssueServiceServicer_to_server(DevIssueService(),server=server)
 

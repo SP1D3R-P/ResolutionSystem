@@ -2,7 +2,7 @@
 import PyRPC.proto.common_pb2_grpc as pb_g
 import PyRPC.proto.common_pb2 as pb 
 
-from typing import Any , Generator
+from typing import Any , Generator , Callable
 from typing_extensions import Self
 
 
@@ -25,7 +25,7 @@ class IssueIntermideateService(pb_g.IssueIntermideateServiceServicer) :
     _db : db_filds = db_filds(ISSUE_VEC_DB_NAME)
     _features : db_filds = db_filds(Features_Server.FEATURE_VEC_DB_NAME)
 
-    def __init__(self : Self, thrashold : int ):
+    def __init__(self : Self, thrashold : float ):
         super().__init__()
         self.thrashold = thrashold
 
@@ -36,22 +36,26 @@ class IssueIntermideateService(pb_g.IssueIntermideateServiceServicer) :
         id : str = str(uuid4())
 
         try :
-            embeddings = SharedData.str_ctx_embedding(request.description)
+            embeddings = SharedData.str_ctx_embedding(request.description.description.lower())
             self._db.collection.add(
                 ids= id,
                 embeddings=embeddings,
-                metadatas={"title" : request.title.title , "status" : 0 , "feature_id" : request.related.id , "solution" : "" },
-                documents=request.description
+                metadatas={"title" : request.title.title , "status" : 0 , "feature_id" : request.related.id.id , "solution" : "" },
+                documents=request.description.description
             )   
         except Exception as e : 
             print("Can't Insert due to ERROR:: ",e)
-        return pb.Issue(
-            id=pb.Id(id=id),
-            title=pb.Title(title=request.title.title),
-            related=request.related,
-            description=pb.Description(description=request.description),
-            status=1,
-            solution=""
+            raise grpc.RpcError(e)
+        return pb.CreateIssueResponse( 
+                issue= pb.Issue(
+                id=pb.Id(id=id),
+                title=pb.Title(title=request.title.title),
+                related=request.related,
+                description=pb.Description(description=request.description.description),
+                status=1,
+                solution=""
+            ),
+            assign_to_engineer=True
         )
     
 
@@ -73,7 +77,7 @@ class IssueIntermideateService(pb_g.IssueIntermideateServiceServicer) :
     
     @staticmethod
     def FindSimilarIssuePy(db : db_filds , i_desc : str, feature_id : str , *,k = 10) -> dict : 
-        embeddings = SharedData.str_qn_embedding(i_desc)
+        embeddings = SharedData.str_qn_embedding(i_desc.lower())
         return db.collection.query(
             query_embeddings=embeddings,
             where={"feature_id":feature_id},
@@ -117,7 +121,7 @@ class UserIssueService(pb_g.UserIssueServiceServicer) :
         planning to shift this part to go
         that's why IssueIntermideateService service is naked?
     """
-    similarity_thrashold : float = .40
+    similarity_thrashold : float = 0.4526
     _db = db_filds(ISSUE_VEC_DB_NAME)
     __metadata__ = SharedData.Singleton
 
@@ -137,7 +141,7 @@ class UserIssueService(pb_g.UserIssueServiceServicer) :
                 request.related.id.id,
                 k=10
             )
-            filters = list(map(lambda x : x > self.similarity_thrashold , query['distances'][0] ))
+            filters = list(map(lambda x : x <= self.similarity_thrashold , query['distances'][0] ))
             for (id,doc,metatdata,f) in zip(query['ids'][0],query['documents'][0],query['metadatas'][0],filters):
                 # "title" : request.title , "status" : 0 , "feature_id" : request.related.id , "solution" : ""
                 if f :

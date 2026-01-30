@@ -89,13 +89,16 @@ class DevFeatureService(pb_g.DevFeatureServiceServicer) :
 
     # for normal python call to an grpc service
     def AddFeaturePy(self : Self , name : str , desc : str  ) : 
-        id = str(uuid.uuid4())
+
+        # Check if there any Privous Function
+        result =self._db.collection.get(where={"Feature-Name":name})
+        id = result['ids'][0] if len(result['ids']) == 1 else str(uuid.uuid4())
 
         # generating embedding 
         embeddings : chromadb.Embeddings = SharedData.str_ctx_embedding(desc) 
 
         # append to the database 
-        self._db.collection.add(
+        self._db.collection.upsert(
             ids = id,
             documents = desc,
             embeddings = embeddings,
@@ -111,6 +114,8 @@ class DevFeatureService(pb_g.DevFeatureServiceServicer) :
     def AddFeature(self : Self , request : pb.Feature , context : grpc.RpcContext ) -> pb.Feature | ValueError : 
         return self.AddFeaturePy(request.name,request.description)
     
-    def ListAllFeatureName(self, request, context):
-        # TODO 
-        pass 
+    def ListAllFeatureName(self, request : pb.Empty , context) -> Generator[pb.Feature,None,None]:
+        result = self._db.collection.get()
+        for id in result['ids'] : 
+            yield id
+        return 

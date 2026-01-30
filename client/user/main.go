@@ -23,6 +23,7 @@ type FeatureBox struct {
 	conn          *grpc.ClientConn
 	featureClient pb.UserFeatureSeviceClient
 	issueClient   pb.UserIssueServiceClient
+	common        pb.IssueIntermideateServiceClient
 }
 
 func (f *FeatureBox) append(newFeature *pb.Feature) {
@@ -60,6 +61,7 @@ func (f *FeatureBox) preloadFeature() {
 func NewFeatureBox(conn *grpc.ClientConn) *FeatureBox {
 	c := pb.NewUserFeatureSeviceClient(conn)
 	f := pb.NewUserIssueServiceClient(conn)
+	i := pb.NewIssueIntermideateServiceClient(conn)
 	features := make(map[string]*pb.Feature)
 	idxMap := make(map[string]*pb.Feature)
 	ret := &FeatureBox{
@@ -68,6 +70,7 @@ func NewFeatureBox(conn *grpc.ClientConn) *FeatureBox {
 		issueClient:   f,
 		features:      features,
 		featuresIdx:   idxMap,
+		common:        i,
 	}
 	ret.preloadFeature()
 	return ret
@@ -145,6 +148,24 @@ func (f *FeatureBox) PostIssueName(title string, desc string, name string) (*pb.
 	return r, nil
 }
 
+func (f *FeatureBox) ForcePostIssue(title string, desc string, related *pb.Feature) (*pb.Issue, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	response, err := f.common.CreateIssue(
+		ctx,
+		&pb.Issue{
+			Related:     related,
+			Title:       &pb.Title{Title: title},
+			Description: &pb.Description{Description: desc},
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return response.GetIssue(), nil
+}
+
 func (f *FeatureBox) FindFeatureDes(desc string) ([]*pb.Feature, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -183,8 +204,8 @@ func IssueString(issue *pb.Issue) {
 		issue.Title.Title,
 		issue.Related.Id.Id,
 		issue.Related.Name.Name,
-		fmt.Sprintf(issue.Related.Description.Description),
-		fmt.Sprintf(issue.Description.Description),
+		fmt.Sprint(issue.Related.Description.Description),
+		fmt.Sprint(issue.Description.Description),
 		issue.Solution,
 	)
 
@@ -192,10 +213,11 @@ func IssueString(issue *pb.Issue) {
 
 var (
 	PORT = os.Getenv("PY_PORT")
+	HOST = os.Getenv("HOST")
 )
 
-func main() {
-	target := fmt.Sprintf("localhost:%s", PORT)
+func CLI() {
+	target := fmt.Sprintf("%s:%s", HOST, PORT)
 	conn, err := grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("failed to connect to gRPC server at %s: %v", target, err)
@@ -204,9 +226,9 @@ func main() {
 
 	fb := NewFeatureBox(conn)
 
-	searchPattern := regexp.MustCompile("^Search[\\s]*:")
-	postIssuePattern := regexp.MustCompile("^Post[\\s]*:")
-	findPattern := regexp.MustCompile("^Find[\\s]*:")
+	searchPattern := regexp.MustCompile(`^Search[\s]*:`)
+	postIssuePattern := regexp.MustCompile(`^Post[\s]*:`)
+	findPattern := regexp.MustCompile(`^Find[\s]*:`)
 
 	instruction := `
 +-----------------------------------------------------------------------------+
@@ -236,6 +258,8 @@ func main() {
 
 	fmt.Println(instruction)
 	for {
+		fmt.Println("=============================================================================")
+		fmt.Println("=============================================================================")
 		fmt.Print(">>> ")
 		input, err := reader.ReadString('\n')
 		input = strings.TrimSpace(input)
@@ -257,7 +281,7 @@ func main() {
 				fmt.Println("Not Found:: Error::", err)
 				continue
 			}
-			fmt.Printf("Found::\n (Id:#%s)\tName:[%s]\n Desc:\n\t{%s}\n", f.Id.Id, f.Name, fmt.Sprintf(f.Description.Description))
+			fmt.Printf("Found::\n (Id:#%s)\tName:[%s]\n Desc:\n\t{%s}\n", f.Id.Id, f.Name, fmt.Sprint(f.Description.Description))
 
 		case postIssuePattern.MatchString(in):
 			issue_title := postIssuePattern.Split(in, -1)
@@ -291,6 +315,18 @@ func main() {
 				for _, iss := range res.Issues.Issues {
 					IssueString(iss)
 				}
+				fmt.Print("Do You Still want Post : ")
+				choise, _ := reader.ReadString('\n')
+				choise = strings.TrimSpace(choise)
+				if strings.ToLower(choise) == "y" {
+					res, err := fb.ForcePostIssue(issue, issue_desc, res.Issues.Issues[0].Related)
+					if err != nil {
+						fmt.Printf("Couldn't Create Due to : %v\n", err)
+						continue
+					}
+					fmt.Print("Created ::")
+					IssueString(res)
+				}
 			}
 		case findPattern.MatchString(in):
 			// search := searchPattern.Split(in, -1)
@@ -307,5 +343,8 @@ func main() {
 			fmt.Println(instruction)
 		}
 	}
+}
 
+func main() {
+	CLI()
 }

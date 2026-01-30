@@ -7,8 +7,12 @@ import pathlib
 
 import numpy as np 
 
-from transformers import DPRContextEncoder , DPRQuestionEncoder , DPRContextEncoderTokenizer , DPRQuestionEncoderTokenizer
+# from transformers import DPRContextEncoder , DPRQuestionEncoder , DPRContextEncoderTokenizer , DPRQuestionEncoderTokenizer
+# import torch
+
+from sentence_transformers import SentenceTransformer
 import torch
+
 
 VECTOR_DB_PATH : str = os.getenv('VECTOR_DB_PATH')
 print(VECTOR_DB_PATH)
@@ -49,53 +53,71 @@ class Singleton(type):
     
 
 
-Encoder_Path = pathlib.Path(__file__).parent / "Tokenizer" 
-# Note i'm storing encoder in same dir
-encoder_ctx_name = "dpr-ctx_encoder-single-nq-base"
-encoder_qn_name =  "dpr-question_encoder-single-nq-base"
-try : 
+# Encoder_Path = pathlib.Path(__file__).parent / "Tokenizer" 
+# # Note i'm storing encoder in same dir
+# encoder_ctx_name = "dpr-ctx_encoder-single-nq-base"
+# encoder_qn_name =  "dpr-question_encoder-single-nq-base"
+# try : 
 
-    context_tokenizer : DPRContextEncoderTokenizer  = DPRContextEncoderTokenizer.from_pretrained(Encoder_Path / encoder_ctx_name)
-    context_encoder =  DPRContextEncoder.from_pretrained(Encoder_Path / encoder_ctx_name)
+#     context_tokenizer : DPRContextEncoderTokenizer  = DPRContextEncoderTokenizer.from_pretrained(Encoder_Path / encoder_ctx_name)
+#     context_encoder =  DPRContextEncoder.from_pretrained(Encoder_Path / encoder_ctx_name)
 
-    # Question Tokenizer and Encoder 
-    question_tokenizer = DPRQuestionEncoderTokenizer.from_pretrained(Encoder_Path / encoder_qn_name)
-    question_encoder = DPRQuestionEncoder.from_pretrained(Encoder_Path / encoder_qn_name)
-except :  
-    context_tokenizer : DPRContextEncoderTokenizer  = DPRContextEncoderTokenizer.from_pretrained(f"facebook/{encoder_ctx_name}")
-    context_encoder =  DPRContextEncoder.from_pretrained(f'facebook/{encoder_ctx_name}')
+#     # Question Tokenizer and Encoder 
+#     question_tokenizer = DPRQuestionEncoderTokenizer.from_pretrained(Encoder_Path / encoder_qn_name)
+#     question_encoder = DPRQuestionEncoder.from_pretrained(Encoder_Path / encoder_qn_name)
+# except :  
+#     context_tokenizer : DPRContextEncoderTokenizer  = DPRContextEncoderTokenizer.from_pretrained(f"facebook/{encoder_ctx_name}")
+#     context_encoder =  DPRContextEncoder.from_pretrained(f'facebook/{encoder_ctx_name}')
 
-    context_tokenizer.save_pretrained(Encoder_Path / encoder_ctx_name)
-    context_encoder.save_pretrained(Encoder_Path / encoder_ctx_name)
+#     context_tokenizer.save_pretrained(Encoder_Path / encoder_ctx_name)
+#     context_encoder.save_pretrained(Encoder_Path / encoder_ctx_name)
 
-    # Question Tokenizer and Encoder 
-    question_tokenizer = DPRQuestionEncoderTokenizer.from_pretrained(f"facebook/{encoder_qn_name}")
-    question_encoder = DPRQuestionEncoder.from_pretrained(f'facebook/{encoder_qn_name}')
+#     # Question Tokenizer and Encoder 
+#     question_tokenizer = DPRQuestionEncoderTokenizer.from_pretrained(f"facebook/{encoder_qn_name}")
+#     question_encoder = DPRQuestionEncoder.from_pretrained(f'facebook/{encoder_qn_name}')
     
-    question_tokenizer.save_pretrained(Encoder_Path / encoder_qn_name)
-    context_encoder.save_pretrained(Encoder_Path / encoder_qn_name)
+#     question_tokenizer.save_pretrained(Encoder_Path / encoder_ctx_name)
+#     context_encoder.save_pretrained(Encoder_Path / encoder_qn_name)
 
-DEVICE = 'cpu' # TODO :: Change to cuda
-# 'gpu' if torch.cuda.is_available() else 'cpu'
+# DEVICE = 'cpu' # TODO :: Change to cuda
+# # 'gpu' if torch.cuda.is_available() else 'cpu'
 
-context_encoder.to(DEVICE)  
-question_encoder.to(DEVICE)
+# context_encoder.to(DEVICE)  
+# question_encoder.to(DEVICE)
 
-def str_ctx_embedding(ctx : str ) -> np.ndarray: 
-    token = context_tokenizer(ctx , return_tensors = 'pt', padding=True, truncation=True,max_length=500).to(DEVICE)
-    embeding = None 
-    with torch.no_grad() : 
-        output = context_encoder(**token)
-        embeding = output.pooler_output.cpu().numpy() 
-    return embeding
+# def str_ctx_embedding(ctx : str ) -> np.ndarray: 
+#     token = context_tokenizer(ctx , return_tensors = 'pt', padding=True, truncation=True,max_length=500).to(DEVICE)
+#     embeding = None 
+#     with torch.no_grad() : 
+#         output = context_encoder(**token)
+#         embeding = output.pooler_output.cpu().numpy() 
+#     return embeding
             
+# def str_qn_embedding(ctx : str ) -> np.ndarray: 
+#     token = question_tokenizer(ctx , return_tensors = 'pt' ,padding=True, truncation=True,max_length=500).to(DEVICE)
+#     embeding = None 
+#     with torch.no_grad() : 
+#         output = question_encoder(**token)
+#         embeding = output.pooler_output.cpu().numpy() 
+#     return embeding
+
+
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+MODEL_NAME = 'BAAI/bge-base-en-v1.5'
+model = SentenceTransformer(MODEL_NAME, device=DEVICE)
+def str_ctx_embedding(ctx : str ) -> np.ndarray: 
+    with torch.no_grad():
+        embedding = model.encode(ctx.lower(), convert_to_numpy=True)
+
+    return embedding.reshape(1, -1)
+        
 def str_qn_embedding(ctx : str ) -> np.ndarray: 
-    token = question_tokenizer(ctx , return_tensors = 'pt').to(DEVICE)
-    embeding = None 
-    with torch.no_grad() : 
-        output = question_encoder(**token)
-        embeding = output.pooler_output.cpu().numpy() 
-    return embeding
+    ctx = f"Represent this sentence for searching relevant passages: {ctx.lower()}"
+    
+    with torch.no_grad():
+        embedding = model.encode(ctx, convert_to_numpy=True)
+    
+    return embedding.reshape(1, -1)
             
 
 # TODO need to see which cuda version i'm using in global version 
