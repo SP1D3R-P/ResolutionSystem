@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	pb "example.com/ResolutionSystem/server/GORPC/proto"
+	pb "example.com/ResolutionSystem/client/proto"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

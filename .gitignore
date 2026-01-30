@@ -213,9 +213,9 @@ TODO
 
 db/
 Tokenizer/
-# database [Currently Ignore it as I'm Using InMemory Data]
-db/
+
 
 CtxEncoder/
 QnEncoder/
-Untitled.ipynb
+Demo.ipynb
+proto/

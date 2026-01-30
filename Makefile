@@ -1,5 +1,5 @@
-PROTO_DIR=proto
-GO_OUT=server/GORPC/proto
+PROTO_DIR=protos
+GO_OUT=client/proto
 PY_OUT=server/PyRPC/proto
 
 ENV_FILE=".env"
@@ -24,7 +24,7 @@ _go_proto:
 		--go_out=$(GO_OUT) \
 		--go_opt=paths=source_relative\
 		--go-grpc_out=$(GO_OUT) --go-grpc_opt=paths=source_relative \
-		-I proto/ \
+		-I protos/ \
 		$(PROTO_FILES)
 
 # Compiling For Python
@@ -33,7 +33,7 @@ _py_proto:
 # example [for reference]
 # python -m grpc_tools.protoc -I../../protos --python_out=. --pyi_out=. --grpc_python_out=. ../../protos/helloworld.proto
 	uv run -m grpc_tools.protoc \
-		-I proto/ \
+		-I protos/ \
 		--python_out=$(PY_OUT) \
 		--pyi_out=$(PY_OUT) \
 		--grpc_python_out=$(PY_OUT) \
